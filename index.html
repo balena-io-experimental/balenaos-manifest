@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>BalenaOS Manifest Explorer</title>
+    <script src="https://unpkg.com/vue"></script>
+    <style>
+      #list li {
+        border: 1px solid #ddd; /* Add a border to all links */
+        margin-top: -1px; /* Prevent double borders */
+        background-color: #f6f6f6; /* Grey background color */
+        padding: 12px; /* Add some padding */
+        text-decoration: none; /* Remove default text underline */
+        font-size: 18px; /* Increase the font-size */
+        color: black; /* Add a black text color */
+        display: block; /* Make it into a block element to fill the whole list */
+      }
+
+      #list ul {
+        width: 400px;
+        height: 500px;
+        overflow-y: scroll;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <span>Device Type: </span>
+      <select v-model="selected_dt" @change="onDTSelected($event)">
+        <option v-for="device in device_types" v-bind:value="device">
+          {{ device }}
+        </option>
+      </select>
+      <section v-show="selected_dt">
+        <span>Version:</span>
+        <select v-model="selected_version" @change="getManifest($event)">
+          <option v-for="version in versions" v-bind:value="version">
+            {{ version }}
+          </option>
+        </select>
+      </section>
+      <section id="list" v-show="formatManifestData">
+        <ul>
+          <li v-for="value in formatManifestData">{{ value }}</li>
+        </ul>
+      </section>
+    </div>
+
+    <script>
+      new Vue({
+        el: "#app",
+        data: {
+          selected_dt: null,
+          device_types: [],
+          selected_version: null,
+          versions: [],
+          aliases: {
+            "intel-nuc": "genericx86-64",
+            "raspberry-pi": "raspberrypi",
+            "raspberry-pi2": "raspberrypi2",
+            "beaglebone-black": "beaglebone",
+            "intel-edison": "edison",
+          },
+          manifest_data_raw: null,
+        },
+        computed: {
+          formatManifestData: function () {
+            if (this.manifest_data_raw != null) {
+              let data = this.manifest_data_raw
+                .trim()
+                .split("\n")
+                .map((row) => row.split(" ")[0]);
+              this.displayData = data;
+              return data;
+            }
+          },
+        },
+        methods: {
+          onDTSelected(event) {
+            /* fetch device type versions */
+            this.selected_version = null;
+            fetch(
+              "https://api.balena-cloud.com/device-types/v1/" +
+                this.selected_dt +
+                "/images"
+            )
+              .then((resp) => resp.json())
+              .then((data) => {
+                this.versions = data.versions;
+              })
+              .catch((err) => alert(err));
+          },
+          async getManifest(event) {
+            let baseurl = "https://files.balena-cloud.com/images/";
+            let alias = this.selected_dt;
+
+            if (this.aliases[this.selected_dt]) {
+              alias = this.aliases[this.selected_dt];
+            }
+
+            let url =
+              baseurl +
+              this.selected_dt +
+              "/" +
+              encodeURIComponent(this.selected_version) +
+              "/resin-image-" +
+              alias +
+              ".manifest";
+
+            let flasher_url =
+              baseurl +
+              this.selected_dt +
+              "/" +
+              encodeURIComponent(this.selected_version) +
+              "/resin-image-flasher-" +
+              alias +
+              ".manifest";
+
+            var requestOptions = {
+              method: "GET",
+              redirect: "follow",
+            };
+
+            const fetch_resp = await fetch(
+              "https://cors-anywhere.herokuapp.com/" + url,
+              requestOptions
+            );
+
+            if (fetch_resp.status == 404) {
+              const fetch_flasher_resp = await fetch(
+                "https://cors-anywhere.herokuapp.com/" + flasher_url,
+                requestOptions
+              );
+
+              if (fetch_flasher_resp.status == 200) {
+                this.manifest_data_raw = await fetch_flasher_resp.text();
+              }
+            } else {
+              if (fetch_resp.status == 200) {
+                this.manifest_data_raw = await fetch_resp.text();
+              }
+            }
+          },
+        },
+        beforeCreate() {
+          /* fetch device types */
+          fetch(
+            "https://api.balena-cloud.com/v6/device_type?$filter=is_private%20eq%20false"
+          )
+            .then((resp) => resp.json())
+            .then((data) => {
+              data.d.map((dev) => {
+                this.device_types.push(dev.slug);
+              });
+              this.device_types.sort();
+            })
+            .catch((err) => alert(err));
+        },
+      });
+    </script>
+  </body>
+</html>
