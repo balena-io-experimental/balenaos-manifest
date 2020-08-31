@@ -4,9 +4,58 @@
     <title>BalenaOS Manifest Explorer</title>
     <link rel="stylesheet" href="https://unpkg.com/mvp.css" />
     <script src="https://unpkg.com/vue"></script>
+    <style>
+      /* source: http://www.menucool.com/9499/CSS-loading-spinner-with-a-semi-transparent-background */
+      #cover-spin {
+        position: fixed;
+        width: 100%;
+        left: 0;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        background-color: rgba(187, 184, 184, 0.712);
+        z-index: 9999;
+      }
+
+      @-webkit-keyframes spin {
+        from {
+          -webkit-transform: rotate(0deg);
+        }
+        to {
+          -webkit-transform: rotate(360deg);
+        }
+      }
+
+      @keyframes spin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      #cover-spin::after {
+        content: "";
+        display: block;
+        position: absolute;
+        left: 48%;
+        top: 40%;
+        width: 40px;
+        height: 40px;
+        border-style: solid;
+        border-color: black;
+        border-top-color: transparent;
+        border-width: 4px;
+        border-radius: 50%;
+        -webkit-animation: spin 0.8s linear infinite;
+        animation: spin 0.8s linear infinite;
+      }
+    </style>
   </head>
   <body>
     <div id="app">
+      <div id="cover-spin" v-show="loading"></div>
       <section id="form">
         <form>
           <span>Device Type: </span>
@@ -50,6 +99,7 @@
       new Vue({
         el: "#app",
         data: {
+          loading: true,
           selected_dt: null,
           device_types: [],
           selected_version: null,
@@ -68,7 +118,6 @@
         computed: {
           formatManifestData: function () {
             if (this.manifest_data_raw != null) {
-              console.log("Formatting manifest data");
               return this.manifest_data_raw
                 .trim()
                 .split("\n")
@@ -93,10 +142,15 @@
             }
           },
         },
+        watch: {
+          selected_version: function () {
+            this.getManifest();
+          },
+        },
         methods: {
           onDTSelected(event) {
             /* fetch device type versions */
-            this.selected_version = null;
+            this.loading = true;
             fetch(
               "https://api.balena-cloud.com/device-types/v1/" +
                 this.selected_dt +
@@ -104,11 +158,14 @@
             )
               .then((resp) => resp.json())
               .then((data) => {
+                this.selected_version = data.latest;
                 this.versions = data.versions;
               })
               .catch((err) => alert(err));
+            this.loading = false;
           },
           async getManifest(event) {
+            this.loading = true;
             let baseurl = "https://files.balena-cloud.com/images/";
             let alias = this.selected_dt;
 
@@ -138,38 +195,32 @@
               method: "GET",
               redirect: "follow",
             };
-            console.log("Fetching from url: " + url);
+
             const fetch_resp = await fetch(
               "https://cors-anywhere.herokuapp.com/" + url,
               requestOptions
             );
 
             if (fetch_resp.status == 404) {
-              console.log(
-                "Couldn't find data at " +
-                  url +
-                  "Fetching from : " +
-                  flasher_url
-              );
               const fetch_flasher_resp = await fetch(
                 "https://cors-anywhere.herokuapp.com/" + flasher_url,
                 requestOptions
               );
 
               if (fetch_flasher_resp.status == 200) {
-                console.log("Setting manifest data");
                 this.manifest_data_raw = await fetch_flasher_resp.text();
               }
             } else {
               if (fetch_resp.status == 200) {
-                console.log("Setting manifest data");
                 this.manifest_data_raw = await fetch_resp.text();
               }
             }
+            this.loading = false;
           },
         },
         beforeCreate() {
           /* fetch device types */
+
           fetch(
             "https://api.balena-cloud.com/v6/device_type?$filter=is_private%20eq%20false"
           )
@@ -179,6 +230,7 @@
                 this.device_types.push(dev.slug);
               });
               this.device_types.sort();
+              this.loading = false;
             })
             .catch((err) => alert(err));
         },
