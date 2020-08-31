@@ -2,46 +2,47 @@
 <html>
   <head>
     <title>BalenaOS Manifest Explorer</title>
+    <link rel="stylesheet" href="https://unpkg.com/mvp.css" />
     <script src="https://unpkg.com/vue"></script>
-    <style>
-      #list li {
-        border: 1px solid #ddd; /* Add a border to all links */
-        margin-top: -1px; /* Prevent double borders */
-        background-color: #f6f6f6; /* Grey background color */
-        padding: 12px; /* Add some padding */
-        text-decoration: none; /* Remove default text underline */
-        font-size: 18px; /* Increase the font-size */
-        color: black; /* Add a black text color */
-        display: block; /* Make it into a block element to fill the whole list */
-      }
-
-      #list ul {
-        width: 400px;
-        height: 500px;
-        overflow-y: scroll;
-      }
-    </style>
   </head>
   <body>
     <div id="app">
-      <span>Device Type: </span>
-      <select v-model="selected_dt" @change="onDTSelected($event)">
-        <option v-for="device in device_types" v-bind:value="device">
-          {{ device }}
-        </option>
-      </select>
-      <section v-show="selected_dt">
-        <span>Version:</span>
-        <select v-model="selected_version" @change="getManifest($event)">
-          <option v-for="version in versions" v-bind:value="version">
-            {{ version }}
-          </option>
-        </select>
+      <section id="form">
+        <form>
+          <span>Device Type: </span>
+          <select v-model="selected_dt" @change="onDTSelected($event)">
+            <option v-for="device in device_types" v-bind:value="device">
+              {{ device }}
+            </option>
+          </select>
+          <div v-show="selected_dt">
+            <span>Version:</span>
+            <select v-model="selected_version" @change="getManifest($event)">
+              <option v-for="version in versions" v-bind:value="version">
+                {{ version }}
+              </option>
+            </select>
+          </div>
+          <input type="search" v-show="formatManifestData" v-model="search" />
+        </form>
       </section>
       <section id="list" v-show="formatManifestData">
-        <ul>
-          <li v-for="value in formatManifestData">{{ value }}</li>
-        </ul>
+        <table>
+          <thead>
+            <tr>
+              <th>Binary</th>
+              <th>Version</th>
+              <th>Target</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="binary in filtered">
+              <td>{{ binary.name }}</td>
+              <td>{{ binary.version }}</td>
+              <td>{{ binary.target }}</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
     </div>
 
@@ -61,16 +62,34 @@
             "intel-edison": "edison",
           },
           manifest_data_raw: null,
+
+          search: "",
         },
         computed: {
           formatManifestData: function () {
             if (this.manifest_data_raw != null) {
-              let data = this.manifest_data_raw
+              console.log("Formatting manifest data");
+              return this.manifest_data_raw
                 .trim()
                 .split("\n")
-                .map((row) => row.split(" ")[0]);
-              this.displayData = data;
-              return data;
+                .map((row) => {
+                  let binary_info_raw = row.split(" ");
+                  let binary_info = {};
+                  binary_info["name"] = binary_info_raw[0];
+                  binary_info["target"] = binary_info_raw[1];
+                  binary_info["version"] = binary_info_raw[2];
+                  return binary_info;
+                });
+            }
+          },
+          filtered: function () {
+            if (this.formatManifestData != undefined) {
+              return this.formatManifestData.filter((item) => {
+                return (
+                  item.name.toLowerCase().indexOf(this.search.toLowerCase()) >
+                  -1
+                );
+              });
             }
           },
         },
@@ -119,23 +138,31 @@
               method: "GET",
               redirect: "follow",
             };
-
+            console.log("Fetching from url: " + url);
             const fetch_resp = await fetch(
               "https://cors-anywhere.herokuapp.com/" + url,
               requestOptions
             );
 
             if (fetch_resp.status == 404) {
+              console.log(
+                "Couldn't find data at " +
+                  url +
+                  "Fetching from : " +
+                  flasher_url
+              );
               const fetch_flasher_resp = await fetch(
                 "https://cors-anywhere.herokuapp.com/" + flasher_url,
                 requestOptions
               );
 
               if (fetch_flasher_resp.status == 200) {
+                console.log("Setting manifest data");
                 this.manifest_data_raw = await fetch_flasher_resp.text();
               }
             } else {
               if (fetch_resp.status == 200) {
+                console.log("Setting manifest data");
                 this.manifest_data_raw = await fetch_resp.text();
               }
             }
