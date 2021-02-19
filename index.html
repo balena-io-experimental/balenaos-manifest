@@ -18,11 +18,11 @@
       z-index: 9999;
     }
 
-    .version_wrapper{
+    .version_wrapper {
       display: flex;
-    flex-direction: row;
-    justify-content: space-around;
-    align-items: center;
+      flex-direction: row;
+      justify-content: space-around;
+      align-items: center;
     }
 
     @-webkit-keyframes spin {
@@ -88,7 +88,7 @@
 
             <input type="radio" id="prod" value="prod" v-model="variant" @change="getManifest($event)">
             <label for="prod">Prod</label>
-      
+
             <input type="radio" id="dev" value="dev" v-model="variant" @change="getManifest($event)">
             <label for="dev">Dev</label>
           </div>
@@ -163,7 +163,7 @@
             });
           }
         },
-      
+
       },
       methods: {
         onDTSelected(event) {
@@ -178,7 +178,7 @@
               this.versions = data.d[0].owns__release.map(release => release.release_tag[1].value);
               // Sort in descending order
               this.versions.sort().reverse();
- 
+
             })
             .catch((err) => alert(err));
           this.loading = false;
@@ -196,7 +196,7 @@
             baseurl +
             this.selected_dt +
             "/" +
-            encodeURIComponent(this.selected_version+"."+this.variant) +
+            encodeURIComponent(this.selected_version + "." + this.variant) +
             "/resin-image-" +
             alias +
             ".manifest";
@@ -205,15 +205,14 @@
             baseurl +
             this.selected_dt +
             "/" +
-            encodeURIComponent(this.selected_version+"."+this.variant) +
+            encodeURIComponent(this.selected_version + "." + this.variant) +
             "/resin-image-flasher-" +
             alias +
             ".manifest";
 
           var requestOptions = {
             method: "GET",
-            redirect: "follow",
-            mode: 'no-cors'
+            redirect: "follow"
           };
 
           const fetch_resp = await fetch(
@@ -247,11 +246,11 @@
           .then((resp) => resp.json())
           .then((data) => {
             data.d.map((device) => {
-              
-              this.device_types.push({"slug":device.is_for__device_type[0].slug,"name":device.is_for__device_type[0].name});
-       
+
+              this.device_types.push({ "slug": device.is_for__device_type[0].slug, "name": device.is_for__device_type[0].name });
+
             });
-            this.device_types.sort((a,b) => (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0));
+            this.device_types.sort((a, b) => (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0));
             this.loading = false;
           })
           .catch((err) => alert(err));
