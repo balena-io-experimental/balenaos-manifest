@@ -1,70 +1,82 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <title>BalenaOS Manifest Explorer</title>
-    <link rel="stylesheet" href="https://unpkg.com/mvp.css" />
-    <script src="https://unpkg.com/vue"></script>
-    <style>
-      /* source: http://www.menucool.com/9499/CSS-loading-spinner-with-a-semi-transparent-background */
-      #cover-spin {
-        position: fixed;
-        width: 100%;
-        left: 0;
-        right: 0;
-        top: 0;
-        bottom: 0;
-        background-color: rgba(187, 184, 184, 0.712);
-        z-index: 9999;
+
+<head>
+  <title>BalenaOS Manifest Explorer</title>
+  <link rel="stylesheet" href="https://unpkg.com/mvp.css" />
+  <script src="https://unpkg.com/vue"></script>
+  <style>
+    /* source: http://www.menucool.com/9499/CSS-loading-spinner-with-a-semi-transparent-background */
+    #cover-spin {
+      position: fixed;
+      width: 100%;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      background-color: rgba(187, 184, 184, 0.712);
+      z-index: 9999;
+    }
+
+    .version_wrapper{
+      display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    }
+
+    @-webkit-keyframes spin {
+      from {
+        -webkit-transform: rotate(0deg);
       }
 
-      @-webkit-keyframes spin {
-        from {
-          -webkit-transform: rotate(0deg);
-        }
-        to {
-          -webkit-transform: rotate(360deg);
-        }
+      to {
+        -webkit-transform: rotate(360deg);
+      }
+    }
+
+    @keyframes spin {
+      from {
+        transform: rotate(0deg);
       }
 
-      @keyframes spin {
-        from {
-          transform: rotate(0deg);
-        }
-        to {
-          transform: rotate(360deg);
-        }
+      to {
+        transform: rotate(360deg);
       }
+    }
 
-      #cover-spin::after {
-        content: "";
-        display: block;
-        position: absolute;
-        left: 48%;
-        top: 40%;
-        width: 40px;
-        height: 40px;
-        border-style: solid;
-        border-color: black;
-        border-top-color: transparent;
-        border-width: 4px;
-        border-radius: 50%;
-        -webkit-animation: spin 0.8s linear infinite;
-        animation: spin 0.8s linear infinite;
-      }
-    </style>
-  </head>
-  <body>
-    <div id="app">
-      <div id="cover-spin" v-show="loading"></div>
-      <section id="form">
-        <form>
-          <span>Device Type: </span>
-          <select v-model="selected_dt" @change="onDTSelected($event)">
-            <option v-for="device in device_types" v-bind:value="device">
-              {{ device }}
-            </option>
-          </select>
-          <div v-show="selected_dt">
+    #cover-spin::after {
+      content: "";
+      display: block;
+      position: absolute;
+      left: 48%;
+      top: 40%;
+      width: 40px;
+      height: 40px;
+      border-style: solid;
+      border-color: black;
+      border-top-color: transparent;
+      border-width: 4px;
+      border-radius: 50%;
+      -webkit-animation: spin 0.8s linear infinite;
+      animation: spin 0.8s linear infinite;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="app">
+    <div id="cover-spin" v-show="loading"></div>
+    <section id="form">
+      <form>
+        <span>Device Type: </span>
+        <select v-model="selected_dt" @change="onDTSelected($event)">
+          <option v-for="device in device_types" v-bind:value="device.slug">
+            {{ device.name }}
+          </option>
+        </select>
+        <div v-show="selected_dt" class="version_wrapper">
+          <div>
             <span>Version:</span>
             <select v-model="selected_version" @change="getManifest($event)">
               <option v-for="version in versions" v-bind:value="version">
@@ -72,169 +84,180 @@
               </option>
             </select>
           </div>
-          <input type="search" v-show="formatManifestData" v-model="search" />
-        </form>
-      </section>
-      <section id="list" v-show="formatManifestData">
-        <table>
-          <thead>
-            <tr>
-              <th>Binary</th>
-              <th>Version</th>
-              <th>Target</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="binary in filtered">
-              <td>{{ binary.name }}</td>
-              <td>{{ binary.version }}</td>
-              <td>{{ binary.target }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-    </div>
+          <div>
 
-    <script>
-      new Vue({
-        el: "#app",
-        data: {
-          loading: true,
-          selected_dt: null,
-          device_types: [],
-          selected_version: null,
-          versions: [],
-          aliases: {
-            "intel-nuc": "genericx86-64",
-            "raspberry-pi": "raspberrypi",
-            "raspberry-pi2": "raspberrypi2",
-            "beaglebone-black": "beaglebone",
-            "intel-edison": "edison",
-          },
-          manifest_data_raw: null,
+            <input type="radio" id="prod" value="prod" v-model="variant" @change="getManifest($event)">
+            <label for="prod">Prod</label>
+      
+            <input type="radio" id="dev" value="dev" v-model="variant" @change="getManifest($event)">
+            <label for="dev">Dev</label>
+          </div>
+        </div>
+        <input type="search" v-show="formatManifestData" v-model="search" />
+      </form>
+    </section>
+    <section id="list" v-show="formatManifestData">
+      <table>
+        <thead>
+          <tr>
+            <th>Binary</th>
+            <th>Version</th>
+            <th>Target</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="binary in filtered">
+            <td>{{ binary.name }}</td>
+            <td>{{ binary.version }}</td>
+            <td>{{ binary.target }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </div>
 
-          search: "",
+  <script>
+    new Vue({
+      el: "#app",
+      data: {
+        loading: true,
+        selected_dt: null,
+        device_types: [],
+        selected_version: null,
+        versions: [],
+        variant: "prod",
+        aliases: {
+          "intel-nuc": "genericx86-64",
+          "raspberry-pi": "raspberrypi",
+          "raspberry-pi2": "raspberrypi2",
+          "beaglebone-black": "beaglebone",
+          "intel-edison": "edison",
         },
-        computed: {
-          formatManifestData: function () {
-            if (this.manifest_data_raw != null) {
-              return this.manifest_data_raw
-                .trim()
-                .split("\n")
-                .map((row) => {
-                  let binary_info_raw = row.split(" ");
-                  let binary_info = {};
-                  binary_info["name"] = binary_info_raw[0];
-                  binary_info["target"] = binary_info_raw[1];
-                  binary_info["version"] = binary_info_raw[2];
-                  return binary_info;
-                });
-            }
-          },
-          filtered: function () {
-            if (this.formatManifestData != undefined) {
-              return this.formatManifestData.filter((item) => {
-                return (
-                  item.name.toLowerCase().indexOf(this.search.toLowerCase()) >
-                  -1
-                );
+        manifest_data_raw: null,
+
+        search: "",
+      },
+      computed: {
+        formatManifestData: function () {
+          if (this.manifest_data_raw != null) {
+            return this.manifest_data_raw
+              .trim()
+              .split("\n")
+              .map((row) => {
+                let binary_info_raw = row.split(" ");
+                let binary_info = {};
+                binary_info["name"] = binary_info_raw[0];
+                binary_info["target"] = binary_info_raw[1];
+                binary_info["version"] = binary_info_raw[2];
+                return binary_info;
               });
-            }
-          },
+          }
         },
-        watch: {
-          selected_version: function () {
-            this.getManifest();
-          },
-        },
-        methods: {
-          onDTSelected(event) {
-            /* fetch device type versions */
-            this.loading = true;
-            fetch(
-              "https://api.balena-cloud.com/device-types/v1/" +
-                this.selected_dt +
-                "/images"
-            )
-              .then((resp) => resp.json())
-              .then((data) => {
-                this.selected_version = data.latest;
-                this.versions = data.versions;
-              })
-              .catch((err) => alert(err));
-            this.loading = false;
-          },
-          async getManifest(event) {
-            this.loading = true;
-            let baseurl = "https://files.balena-cloud.com/images/";
-            let alias = this.selected_dt;
-
-            if (this.aliases[this.selected_dt]) {
-              alias = this.aliases[this.selected_dt];
-            }
-
-            let url =
-              baseurl +
-              this.selected_dt +
-              "/" +
-              encodeURIComponent(this.selected_version) +
-              "/resin-image-" +
-              alias +
-              ".manifest";
-
-            let flasher_url =
-              baseurl +
-              this.selected_dt +
-              "/" +
-              encodeURIComponent(this.selected_version) +
-              "/resin-image-flasher-" +
-              alias +
-              ".manifest";
-
-            var requestOptions = {
-              method: "GET",
-              redirect: "follow",
-            };
-
-            const fetch_resp = await fetch(
-              "https://cors-anywhere.herokuapp.com/" + url,
-              requestOptions
-            );
-
-            if (fetch_resp.status == 404) {
-              const fetch_flasher_resp = await fetch(
-                "https://cors-anywhere.herokuapp.com/" + flasher_url,
-                requestOptions
+        filtered: function () {
+          if (this.formatManifestData != undefined) {
+            return this.formatManifestData.filter((item) => {
+              return (
+                item.name.toLowerCase().indexOf(this.search.toLowerCase()) >
+                -1
               );
-
-              if (fetch_flasher_resp.status == 200) {
-                this.manifest_data_raw = await fetch_flasher_resp.text();
-              }
-            } else {
-              if (fetch_resp.status == 200) {
-                this.manifest_data_raw = await fetch_resp.text();
-              }
-            }
-            this.loading = false;
-          },
+            });
+          }
         },
-        beforeCreate() {
-          /* fetch device types */
-
+      
+      },
+      methods: {
+        onDTSelected(event) {
+          /* fetch device type versions */
+          this.loading = true;
           fetch(
-            "https://api.balena-cloud.com/v6/device_type?$filter=is_private%20eq%20false"
+            `https://api.balena-cloud.com/v6/application?$filter=(is_host%20eq%20true)%20and%20(is_for__device_type/any(dt:dt/slug%20eq%20%27${this.selected_dt}%27))%20and%20not(contains(app_name,%27esr%27))&$select=id,app_name&$expand=application_tag($select=id,tag_key,value),is_for__device_type($select=slug),owns__release($select=id;$expand=release_tag($select=id,tag_key,value);$filter=is_invalidated%20eq%20false)`
           )
             .then((resp) => resp.json())
             .then((data) => {
-              data.d.map((dev) => {
-                this.device_types.push(dev.slug);
-              });
-              this.device_types.sort();
-              this.loading = false;
+
+              this.versions = data.d[0].owns__release.map(release => release.release_tag[1].value);
+              // Sort in descending order
+              this.versions.sort().reverse();
+ 
             })
             .catch((err) => alert(err));
+          this.loading = false;
         },
-      });
-    </script>
-  </body>
+        async getManifest(event) {
+          this.loading = true;
+          let baseurl = "https://files.balena-cloud.com/images/";
+          let alias = this.selected_dt;
+
+          if (this.aliases[this.selected_dt]) {
+            alias = this.aliases[this.selected_dt];
+          }
+
+          let url =
+            baseurl +
+            this.selected_dt +
+            "/" +
+            encodeURIComponent(this.selected_version+"."+this.variant) +
+            "/resin-image-" +
+            alias +
+            ".manifest";
+
+          let flasher_url =
+            baseurl +
+            this.selected_dt +
+            "/" +
+            encodeURIComponent(this.selected_version+"."+this.variant) +
+            "/resin-image-flasher-" +
+            alias +
+            ".manifest";
+
+          var requestOptions = {
+            method: "GET",
+            redirect: "follow",
+            mode: 'no-cors'
+          };
+
+          const fetch_resp = await fetch(
+            url,
+            requestOptions
+          );
+
+          if (fetch_resp.status == 404) {
+            const fetch_flasher_resp = await fetch(
+              flasher_url,
+              requestOptions
+            );
+
+            if (fetch_flasher_resp.status == 200) {
+              this.manifest_data_raw = await fetch_flasher_resp.text();
+            }
+          } else {
+            if (fetch_resp.status == 200) {
+              this.manifest_data_raw = await fetch_resp.text();
+            }
+          }
+          this.loading = false;
+        },
+      },
+      beforeCreate() {
+        /* fetch device types */
+
+        fetch(
+          "https://api.balena-cloud.com/v6/application?$filter=is_host%20eq%20true%20and%20is_archived%20eq%20false%20and%20not(contains(app_name,%27esr%27))&$expand=is_for__device_type($select=name,slug)&$select=is_for__device_type"
+        )
+          .then((resp) => resp.json())
+          .then((data) => {
+            data.d.map((device) => {
+              
+              this.device_types.push({"slug":device.is_for__device_type[0].slug,"name":device.is_for__device_type[0].name});
+       
+            });
+            this.device_types.sort((a,b) => (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0));
+            this.loading = false;
+          })
+          .catch((err) => alert(err));
+      },
+    });
+  </script>
+</body>
+
 </html>
