@@ -136,6 +136,7 @@
         manifest_data_raw: null,
 
         search: "",
+        proxyUrl: "https://cors.bridged.cc/"
       },
       computed: {
         formatManifestData: function () {
@@ -146,7 +147,7 @@
               .map((row) => {
                 let binary_info_raw = row.split(" ");
                 let binary_info = {};
-                binary_info["name"] = binary_info_raw[0];
+                binary_info["name"] = (binary_info_raw[0] == "docker-disk") ?  "supervisor":binary_info_raw[0] ;
                 binary_info["target"] = binary_info_raw[1];
                 binary_info["version"] = binary_info_raw[2];
                 return binary_info;
@@ -156,8 +157,9 @@
         filtered: function () {
           if (this.formatManifestData != undefined) {
             return this.formatManifestData.filter((item) => {
+              let term  = this.search.toLowerCase();
               return (
-                item.name.toLowerCase().indexOf(this.search.toLowerCase()) >
+                item.name.toLowerCase().indexOf(term) >
                 -1
               );
             });
@@ -185,7 +187,7 @@
         },
         async getManifest(event) {
           this.loading = true;
-          let baseurl = "https://files.balena-cloud.com/images/";
+          let baseurl = this.proxyUrl + "https://files.balena-cloud.com/images/";
           let alias = this.selected_dt;
 
           if (this.aliases[this.selected_dt]) {
@@ -212,7 +214,8 @@
 
           var requestOptions = {
             method: "GET",
-            redirect: "follow"
+            redirect: "follow",
+            mode: "cors",
           };
 
           const fetch_resp = await fetch(
