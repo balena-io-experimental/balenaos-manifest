@@ -194,12 +194,22 @@
             alias = this.aliases[this.selected_dt];
           }
 
+          const resin_rename_version = '2.72.0';
+          const isGreater = (a, b) => {
+            return a.localeCompare(b, undefined, { numeric: true }) === 1;
+          };
+
+          let image_prefix = 'balena-image-';
+          if (isGreater(resin_rename_version, this.selected_version.split("+")[0])) {
+            image_prefix = 'resin-image-';
+          }
+
           let url =
             baseurl +
             this.selected_dt +
             "/" +
             encodeURIComponent(this.selected_version + "." + this.variant) +
-            "/resin-image-" +
+            `/${image_prefix}` +
             alias +
             ".manifest";
 
@@ -208,7 +218,7 @@
             this.selected_dt +
             "/" +
             encodeURIComponent(this.selected_version + "." + this.variant) +
-            "/resin-image-flasher-" +
+            `/${image_prefix}flasher-` +
             alias +
             ".manifest";
 
