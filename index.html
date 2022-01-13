@@ -187,7 +187,7 @@
         },
         async getManifest(event) {
           this.loading = true;
-          let baseurl = this.proxyUrl + "https://files.balena-cloud.com/images/";
+          let baseurl = "https://files.balena-cloud.com/images/";
           let alias = this.selected_dt;
 
           if (this.aliases[this.selected_dt]) {
