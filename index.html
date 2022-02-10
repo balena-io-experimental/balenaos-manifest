@@ -84,12 +84,12 @@
               </option>
             </select>
           </div>
-          <div>
+          <div v-if="hasVariants">
 
-            <input type="radio" id="prod" value="prod" v-model="variant" @change="getManifest($event)">
+            <input type="radio" id="prod" value=".prod" v-model="variant" @change="getManifest($event)">
             <label for="prod">Prod</label>
 
-            <input type="radio" id="dev" value="dev" v-model="variant" @change="getManifest($event)">
+            <input type="radio" id="dev" value=".dev" v-model="variant" @change="getManifest($event)">
             <label for="dev">Dev</label>
           </div>
         </div>
@@ -125,7 +125,8 @@
         device_types: [],
         selected_version: null,
         versions: [],
-        variant: "prod",
+        variant: ".prod",
+        hasVariants: false,
         aliases: {
           "intel-nuc": "genericx86-64",
           "raspberry-pi": "raspberrypi",
@@ -137,6 +138,24 @@
 
         search: "",
         proxyUrl: "https://cors.bridged.cc/"
+      },
+      beforeCreate() {
+        /* fetch device types */
+
+        fetch(
+          "https://api.balena-cloud.com/v6/application?$filter=is_host%20eq%20true%20and%20is_archived%20eq%20false%20and%20not(contains(app_name,%27esr%27))&$expand=is_for__device_type($select=name,slug)&$select=is_for__device_type"
+        )
+          .then((resp) => resp.json())
+          .then((data) => {
+            data.d.map((device) => {
+
+              this.device_types.push({ "slug": device.is_for__device_type[0].slug, "name": device.is_for__device_type[0].name });
+
+            });
+            this.device_types.sort((a, b) => (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0));
+            this.loading = false;
+          })
+          .catch((err) => alert(err));
       },
       computed: {
         formatManifestData: function () {
@@ -177,7 +196,62 @@
             .then((resp) => resp.json())
             .then((data) => {
 
-              this.versions = data.d[0].owns__release.map(release => release.release_tag[1].value);
+              /*
+              Up to release 2.88.4 structure is like this:
+              {
+              "release_tag": [
+                {
+                  "id": 306023,
+                  "tag_key": "variant",
+                  "value": "production",
+                  "__metadata": {
+                    "uri": "/resin/release_tag(@id)?@id=306023"
+                  }
+                },
+                {
+                  "id": 306022,
+                  "tag_key": "version",
+                  "value": "2.88.4+rev0",
+                  "__metadata": {
+                    "uri": "/resin/release_tag(@id)?@id=306022"
+                  }
+                }
+              ],
+              "id": 2007138,
+              "__metadata": {
+                "uri": "/resin/release(@id)?@id=2007138"
+              }
+            } 
+
+            As from 2.88.5+rev1:
+            {
+            "release_tag": [
+              {
+                "id": 320847,
+                "tag_key": "version",
+                "value": "2.88.5+rev1",
+                "__metadata": {
+                  "uri": "/resin/release_tag(@id)?@id=320847"
+                }
+              }
+            ],
+            "id": 2041541,
+            "__metadata": {
+              "uri": "/resin/release(@id)?@id=2041541"
+            }
+          }
+          */
+
+              this.versions = data.d[0].owns__release.map(release => {
+                if(release.release_tag[0].tag_key != "variant"){
+                  // we have a release that has no variants
+                  return release.release_tag[0].value 
+                }else{
+
+                  return release.release_tag[1].value
+                }
+
+                });
               // Sort in descending order
               this.versions.sort().reverse();
 
@@ -195,8 +269,13 @@
           }
 
           const resin_rename_version = '2.72.0';
+          const imageVariantChange= '2.85.0';
+
           const isGreater = (a, b) => {
-            return a.localeCompare(b, undefined, { numeric: true }) === 1;
+            return a.localeCompare(b, undefined, { numeric: true }) > 0; // Positive when the referenceStr occurs after compareString
+          };
+          const isGreaterOrEqual = (a, b) => {
+            return a.localeCompare(b, undefined, { numeric: true }) >= 0; // Returns 0 if they are equivalent
           };
 
           let image_prefix = 'balena-image-';
@@ -204,11 +283,20 @@
             image_prefix = 'resin-image-';
           }
 
+          if(isGreater(imageVariantChange, this.selected_version.split("+")[0])){
+            this.hasVariants = true;
+            this.variant =".prod"
+          }else{
+            this.hasVariants =false;
+            this.variant = ""
+
+          }
+
           let url =
             baseurl +
             this.selected_dt +
             "/" +
-            encodeURIComponent(this.selected_version + "." + this.variant) +
+            encodeURIComponent(this.selected_version + this.variant) +
             `/${image_prefix}` +
             alias +
             ".manifest";
@@ -217,7 +305,7 @@
             baseurl +
             this.selected_dt +
             "/" +
-            encodeURIComponent(this.selected_version + "." + this.variant) +
+            encodeURIComponent(this.selected_version + this.variant) +
             `/${image_prefix}flasher-` +
             alias +
             ".manifest";
@@ -250,24 +338,7 @@
           this.loading = false;
         },
       },
-      beforeCreate() {
-        /* fetch device types */
 
-        fetch(
-          "https://api.balena-cloud.com/v6/application?$filter=is_host%20eq%20true%20and%20is_archived%20eq%20false%20and%20not(contains(app_name,%27esr%27))&$expand=is_for__device_type($select=name,slug)&$select=is_for__device_type"
-        )
-          .then((resp) => resp.json())
-          .then((data) => {
-            data.d.map((device) => {
-
-              this.device_types.push({ "slug": device.is_for__device_type[0].slug, "name": device.is_for__device_type[0].name });
-
-            });
-            this.device_types.sort((a, b) => (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0));
-            this.loading = false;
-          })
-          .catch((err) => alert(err));
-      },
     });
   </script>
 </body>
