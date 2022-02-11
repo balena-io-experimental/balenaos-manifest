@@ -143,13 +143,13 @@
         /* fetch device types */
 
         fetch(
-          "https://api.balena-cloud.com/v6/application?$filter=is_host%20eq%20true%20and%20is_archived%20eq%20false%20and%20not(contains(app_name,%27esr%27))&$expand=is_for__device_type($select=name,slug)&$select=is_for__device_type"
+          "https://api.balena-cloud.com/v6/device_type?$filter=is_default_for__application/any(idfa:(idfa/is_host%20eq%20true)%20and%20(idfa/is_archived%20eq%20false))"
         )
           .then((resp) => resp.json())
           .then((data) => {
             data.d.map((device) => {
 
-              this.device_types.push({ "slug": device.is_for__device_type[0].slug, "name": device.is_for__device_type[0].name });
+              this.device_types.push({ "slug": device.slug, "name": device.name });
 
             });
             this.device_types.sort((a, b) => (a.name > b.name) ? 1 : ((b.name > a.name) ? -1 : 0));
